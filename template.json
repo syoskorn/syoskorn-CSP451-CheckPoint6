@@ -1,0 +1,147 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "vmName": {
+      "type": "string",
+      "defaultValue": "myVM",
+      "metadata": {
+        "description": "Name of the Virtual Machine."
+      }
+    },
+    "adminUsername": {
+      "type": "string",
+      "defaultValue": "azureuser",
+      "metadata": {
+        "description": "Admin username for the VM."
+      }
+    },
+    "adminPassword": {
+      "type": "secureString",
+      "metadata": {
+        "description": "Admin password for the VM."
+      }
+    },
+    "vnetName": {
+      "type": "string",
+      "defaultValue": "Student-1569881-vnet",
+      "metadata": {
+        "description": "Name of the existing Virtual Network."
+      }
+    },
+    "subnetName": {
+      "type": "string",
+      "defaultValue": "Virtual-Desktop-Client",
+      "metadata": {
+        "description": "Name of the existing subnet inside the Virtual Network."
+      }
+    }
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Network/publicIPAddresses",
+      "apiVersion": "2022-11-01",
+      "name": "[concat(parameters('vmName'), 'PublicIP')]",
+      "location": "canadacentral",
+      "properties": {
+        "publicIPAllocationMethod": "Dynamic"
+      }
+    },
+    {
+      "type": "Microsoft.Network/networkInterfaces",
+      "apiVersion": "2022-11-01",
+      "name": "[concat(parameters('vmName'), 'NIC')]",
+      "location": "canadacentral",
+      "properties": {
+        "ipConfigurations": [
+          {
+            "name": "ipconfig1",
+            "properties": {
+              "subnet": {
+                "id": "[resourceId('Microsoft.Network/virtualNetworks/subnets', parameters('vnetName'), parameters('subnetName'))]"
+              },
+              "privateIPAllocationMethod": "Dynamic",
+              "publicIPAddress": {
+                "id": "[resourceId('Microsoft.Network/publicIPAddresses', concat(parameters('vmName'), 'PublicIP'))]"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": "Microsoft.Compute/virtualMachines",
+      "apiVersion": "2022-11-01",
+      "name": "[parameters('vmName')]",
+      "location": "canadacentral",
+      "properties": {
+        "hardwareProfile": {
+          "vmSize": "Standard_B1s"
+        },
+        "osProfile": {
+          "computerName": "[parameters('vmName')]",
+          "adminUsername": "[parameters('adminUsername')]",
+          "adminPassword": "[parameters('adminPassword')]"
+        },
+        "storageProfile": {
+          "imageReference": {
+            "publisher": "Canonical",
+            "offer": "UbuntuServer",
+            "sku": "19_10-daily-gen2",
+            "version": "latest"
+          },
+          "osDisk": {
+  "createOption": "FromImage",
+  "managedDisk": {
+    "storageAccountType": "Premium_ZRS"
+  }
+}
+        },
+        "networkProfile": {
+          "networkInterfaces": [
+            {
+              "id": "[resourceId('Microsoft.Network/networkInterfaces', concat(parameters('vmName'), 'NIC'))]"
+            }
+          ]
+        }
+      }
+    }
+  ]
+}
+
+{
+  "type": "Microsoft.Network/networkSecurityGroups",
+  "apiVersion": "2021-03-01",
+  "name": "sanisorn-NSG",
+  "location": "canadacentral",
+  "properties": {
+    "securityRules": [
+      {
+        "name": "AllowSSH",
+        "properties": {
+          "protocol": "Tcp",
+          "sourcePortRange": "*",
+          "destinationPortRange": "22",
+          "sourceAddressPrefix": "*",
+          "destinationAddressPrefix": "*",
+          "access": "Allow",
+          "priority": 1000,
+          "direction": "Inbound"
+        }
+      },
+      {
+        "name": "AllowRDP",
+        "properties": {
+          "protocol": "Tcp",
+          "sourcePortRange": "*",
+          "destinationPortRange": "3389",
+          "sourceAddressPrefix": "*",
+          "destinationAddressPrefix": "*",
+          "access": "Allow",
+          "priority": 1010,
+          "direction": "Inbound"
+        }
+      }
+    ]
+  }
+}
